@@ -249,3 +249,8 @@ VALUES
 ('O0178','C008','P08','2026-03-10',2,10,'UPI',3,1),
 ('O0179','C010','P14','2026-05-06',2,20,'Card',1,0),
 ('O0180','C020','P11','2026-02-13',1,10,'COD',3,0);
+
+
+SELECT COUNT(*) FROM customers;
+SELECT COUNT(*) FROM products;
+SELECT COUNT(*) FROM orders;
