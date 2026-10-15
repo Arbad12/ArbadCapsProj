@@ -66,6 +66,7 @@ VALUES
 ('P15','Tea Tree Body Wash','PersonalCare',349),
 ('P16','Aloe Vera Gel','PersonalCare',199);
 
+
 INSERT INTO orders(order_id,customer_id,product_id,order_date,quantity,discount_pct,payment_method,rating,returned)
 VALUES
 ('O0001','C012','P04','2026-03-18',2,10,'upi',2,0),
