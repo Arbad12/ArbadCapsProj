@@ -18,7 +18,7 @@ CREATE TABLE orders(
     order_id VARCHAR(10) PRIMARY KEY, 
     customer_id VARCHAR(10) NOT NULL, 
     product_id VARCHAR(10) NOT NULL, 
-    oder_date DATE NOT NULL, 
+    order_date DATE NOT NULL, 
     quantity INT NOT NULL, 
     discount_pct INT, 
     payment_method VARCHAR(10) NOT NULL, 
