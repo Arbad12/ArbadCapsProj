@@ -42,3 +42,22 @@ WHERE c.customer_id NOT IN (SELECT DISTINCT customer_id FROM orders);
 -- C045|Vihaan
 
 
+-- d) GROUP BY + HAVING —
+SELECT
+    c.city,
+    COUNT(o.order_id) AS total_orders,
+    SUM(CASE WHEN o.returned = 1 THEN 1 END) AS returned_orders,
+    ROUND(100.0 * SUM(CASE WHEN o.returned = 1 THEN 1 END)
+           / COUNT(o.order_id),1
+           ) AS return_rate_pct
+FROM orders o
+JOIN customers c
+    ON o.customer_id = c.customer_id
+GROUP BY c.city
+HAVING return_rate_pct > 20
+ORDER BY return_rate_pct DESC;
+--Jaipur|19|8|42.1
+--Lucknow|49|15|30.6
+--Bangalore|33|8|24.2
+
+--e) Ranking with ORDER BY + LIMIT/OFFSET — 
