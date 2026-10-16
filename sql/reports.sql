@@ -60,4 +60,42 @@ ORDER BY return_rate_pct DESC;
 --Lucknow|49|15|30.6
 --Bangalore|33|8|24.2
 
---e) Ranking with ORDER BY + LIMIT/OFFSET — 
+-- e) Ranking with ORDER BY + LIMIT/OFFSET — 
+SELECT
+    c.customer_id,
+    c.name,
+    SUM(
+        o.quantity * p.price * (1 - COALESCE(o.discount_pct, 0) / 100.0)
+    ) AS total_spend
+FROM orders o
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN products p
+    ON o.product_id = p.product_id
+GROUP BY c.customer_id, c.name
+ORDER BY total_spend DESC, customer_id ASC 
+LIMIT 5;
+-- If two customers have the same total_spend, it sorts those tied rows by customer_id in ascending order.
+--C043|Reyansh|12920.0
+--C026|Isha|8371.6
+--C008|Meera|4564.6
+--C011|Arjun|4111.0
+--C042|Sanya|3785.0
+
+SELECT
+    c.customer_id,
+    c.name,
+    SUM(
+        o.quantity * p.price * (1 - COALESCE(o.discount_pct, 0) / 100.0)
+    ) AS total_spend
+FROM orders o
+JOIN customers c
+    ON o.customer_id = c.customer_id
+JOIN products p
+    ON o.product_id = p.product_id
+GROUP BY c.customer_id, c.name
+ORDER BY total_spend DESC, customer_id ASC 
+LIMIT 3 OFFSET 2;
+--C008|Meera|4564.6
+--C011|Arjun|4111.0
+--C042|Sanya|3785.0
