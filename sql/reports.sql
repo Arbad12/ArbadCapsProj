@@ -23,7 +23,22 @@ JOIN products p
 SELECT COUNT(*),
 COUNT(rating),
 COUNT(*) - COUNT(rating)
-FROM orders
+FROM orders;
 -- 180|165|15
+
+
+-- c) LEFT JOIN with a genuine zero-match row —
+SELECT c.customer_id,c.name
+FROM customers c
+LEFT JOIN orders o
+  ON c.customer_id = o.customer_id
+GROUP BY c.customer_id,c.name
+HAVING COUNT(o.order_id) = 0;
+-- C045|Vihaan
+
+SELECT c.customer_id,c.name
+FROM customers c
+WHERE c.customer_id NOT IN (SELECT DISTINCT customer_id FROM orders);
+-- C045|Vihaan
 
 
