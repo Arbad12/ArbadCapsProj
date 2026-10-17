@@ -162,3 +162,77 @@ returns_by_payment_ctier
 # |UPI|1|31|6|19\.4|
 # |UPI|2|22|4|18\.2|
 # The single highest-risk segment is COD + Tier-2 cities at 54.5%
+
+
+#Task 9 — Correlation analysis —
+coeff = merged_df[['rating','returned', 'discount_pct', 'quantity']].corr().round(2) 
+print(coeff)
+#               rating  returned  discount_pct  quantity
+# rating          1.00     -0.10          0.04     -0.10
+# returned       -0.10      1.00         -0.09      0.04
+# discount_pct    0.04     -0.09          1.00     -0.17
+# quantity       -0.10      0.04         -0.17      1.00
+# Correlation coefficient of all six pairs (-0.10, 0.04, -0.10, -0.09, 0.04, -0.17) fall in negligible (|r| < 0.2) range
+# Hypothesis "higher discounts reduce returns" is BUSTED as (discount_pct vs returned correlation ≈ -0.09)
+
+
+#Task 10 — Outlier-corrected time series —
+merged_df['order_date'] = pd.to_datetime(merged_df['order_date'])
+merged_df['year'] = merged_df['order_date'].dt.year
+merged_df['month'] = merged_df['order_date'].dt.month
+
+merged_df['order_value'] = (   
+        merged_df['quantity']
+      * merged_df['price']
+      * (1 - merged_df['discount_pct'] / 100)
+)
+monthly_sales = (
+    merged_df.groupby(['year', 'month'])['order_value']
+      .sum()
+      .reset_index()
+)
+print("including outlier")
+print(monthly_sales)
+
+monthly_sales_outl = (
+    merged_df[merged_df['is_outlier'] == False]
+        .groupby(['year', 'month'])['order_value']
+        .sum()
+        .reset_index()
+) 
+print("excluding outlier")  
+print(monthly_sales_outl)         
+
+print("Interpretation:")
+print(
+       """January's apparent lead is an artifact of two bulk orders landing in January:
+       O0011 on 2026-01-28 and O0098 on 2026-01-10. These unusually large orders
+       inflate January's total order value and make it appear to be the highest month.
+       Once O0011 and O0098 are excluded as outliers  March becomes the genuine peak 
+       month by total order value.
+       """
+)
+# including outlier
+#    year  month  order_value
+# 0  2026      1      29582.1  (highest)
+# 1  2026      2      13195.5
+# 2  2026      3      20318.9
+# 3  2026      4       9495.3
+# 4  2026      5      13151.1
+# 5  2026      6      11615.4
+
+# excluding outlier
+#    year  month  order_value
+# 0  2026      1      11637.1
+# 1  2026      2      13195.5
+# 2  2026      3      20318.9  (highest)
+# 3  2026      4       9495.3
+# 4  2026      5      13151.1
+# 5  2026      6      11615.4
+
+# Interpretation:
+# January's apparent lead is an artifact of two bulk orders landing in January:
+#       O0011 on 2026-01-28 and O0098 on 2026-01-10. These unusually large orders
+#       inflate January's total order value and make it appear to be the highest month.
+#       Once O0011 and O0098 are excluded as outliers  March becomes the genuine peak 
+#       month by total order value.
