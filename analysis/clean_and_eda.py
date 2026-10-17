@@ -102,3 +102,41 @@ revenue."""
 
 
 #Task 6 — IQR outlier detection on quantity —
+Q1 = merged_df['quantity'].quantile(0.25)
+Q3 = merged_df['quantity'].quantile(0.75)
+IQR = Q3 - Q1
+lower = Q1 - 1.5*IQR
+upper = Q3 + 1.5*IQR
+print(Q1,Q3,IQR,lower,upper)
+merged_df["is_outlier"] = (
+    (merged_df["quantity"] < lower) |
+    (merged_df["quantity"] > upper)
+)
+print(merged_df[merged_df["is_outlier"]][["order_id", "quantity"]])
+# 1.0 2.0 1.0 -0.5 3.5
+#      order_id  quantity
+# 10    O0011        25
+# 97    O0098        30
+
+
+#Task 7 — Hypothesis: does COD have a higher return rate? —
+print("Hypothesis:")
+print("H0: COD (Cash on Delivery) does not have a higher return rate than other payment methods.")
+print("H1: COD (Cash on Delivery) has a higher return rate than other payment methods.")
+print()
+
+payment_returns = (
+    merged_df.groupby("payment_method")["returned"]
+      .agg(["count", "mean"])
+)
+
+payment_returns["return_rate_pct"] = (
+    payment_returns["mean"] * 100
+).round(1)
+
+print(payment_returns)
+#                   count   mean         return_rate_pct
+# payment_method                                  
+# CARD               68   0.147059             14.7
+# COD                54   0.444444             44.4
+# UPI                53   0.188679             18.9
