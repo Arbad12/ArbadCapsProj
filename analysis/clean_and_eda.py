@@ -140,3 +140,25 @@ print(payment_returns)
 # CARD               68   0.147059             14.7
 # COD                54   0.444444             44.4
 # UPI                53   0.188679             18.9
+# Hypothesis is CONFIRMED 
+
+
+#Task 8 — Multi-level segmentation — 
+returns_by_payment_ctier = merged_df.groupby(['payment_method', 'city_tier']).agg(
+    total_orders=('returned', 'count'),
+    return_orders=('returned', 'sum')
+)
+returns_by_payment_ctier['return_rate'] = ((
+    returns_by_payment_ctier['return_orders'] / returns_by_payment_ctier['total_orders']
+) * 100).round(1)
+returns_by_payment_ctier
+# Table in Markdown format
+# |payment\_method|city\_tier|total\_orders|return\_orders|return\_rate|
+# |---|---|---|---|---|
+# |CARD|1|45|4|8\.9|
+# |CARD|2|23|6|26\.1|
+# |COD|1|32|12|37\.5|
+# |COD|2|22|12|54\.5|
+# |UPI|1|31|6|19\.4|
+# |UPI|2|22|4|18\.2|
+# The single highest-risk segment is COD + Tier-2 cities at 54.5%
