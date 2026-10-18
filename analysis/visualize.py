@@ -58,9 +58,11 @@ plt.show()
 
 # Find peak month
 peak_row = monthly_sales_outl.loc[monthly_sales_outl['order_value'].idxmax()]
+inflated_row = monthly_sales.loc[monthly_sales['order_value'].idxmax()]
 
 title = (
-    f"March 2026 Is the Genuine Peak Revenue Month After Outlier Review "
+    f"{int(peak_row['year'])}-{int(peak_row['month']):02d} "
+    f"Is the Genuine Peak Revenue Month After Outlier Review "
     f"(₹{peak_row['order_value']:,.1f})"
 )
 
