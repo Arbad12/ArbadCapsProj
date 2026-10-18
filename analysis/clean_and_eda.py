@@ -121,13 +121,19 @@ Q3 = merged_df['quantity'].quantile(0.75)
 IQR = Q3 - Q1
 lower = Q1 - 1.5*IQR
 upper = Q3 + 1.5*IQR
-print(Q1,Q3,IQR,lower,upper)
+print(
+    f"Q1 = {Q1}, "
+    f"Q3 = {Q3}, "
+    f"IQR = {IQR}, "
+    f"lower = {lower}, "
+    f"upper = {upper}"
+)
 merged_df["is_outlier"] = (
     (merged_df["quantity"] < lower) |
     (merged_df["quantity"] > upper)
 )
 print(merged_df[merged_df["is_outlier"]][["order_id", "quantity"]])
-# 1.0 2.0 1.0 -0.5 3.5
+# Q1 = 1.0, Q3 = 2.0, IQR = 1.0, lower = -0.5, upper = 3.5
 #      order_id  quantity
 # 10    O0011        25
 # 97    O0098        30
@@ -135,8 +141,7 @@ print(merged_df[merged_df["is_outlier"]][["order_id", "quantity"]])
 
 #Task 7 — Hypothesis: does COD have a higher return rate? —
 print("Hypothesis:")
-print("H0: COD (Cash on Delivery) does not have a higher return rate than other payment methods.")
-print("H1: COD (Cash on Delivery) has a higher return rate than other payment methods.")
+print("COD (Cash on Delivery) has a higher return rate than other payment methods.")
 print()
 
 payment_returns = (
@@ -148,7 +153,17 @@ payment_returns["return_rate_pct"] = (
     payment_returns["mean"] * 100
 ).round(1)
 
+cod_rate = payment_returns.loc['COD', 'return_rate_pct']
+card_rate = payment_returns.loc['CARD', 'return_rate_pct']
+upi_rate = payment_returns.loc['UPI', 'return_rate_pct']
+
 print(payment_returns)
+if cod_rate > card_rate and cod_rate > upi_rate:
+    print("Hypothesis is CONFIRMED")
+else:
+    print("Hypothesis is BUSTED")
+# Hypothesis:
+# COD (Cash on Delivery) has a higher return rate than other payment methods.
 #                   count   mean         return_rate_pct
 # payment_method                                  
 # CARD               68   0.147059             14.7
@@ -166,26 +181,92 @@ returns_by_payment_ctier['return_rate'] = ((
     returns_by_payment_ctier['return_orders'] / returns_by_payment_ctier['total_orders']
 ) * 100).round(1)
 print(returns_by_payment_ctier)
+
+highest_risk = returns_by_payment_ctier.loc[
+    returns_by_payment_ctier['return_rate'].idxmax()
+]
+print(
+    f"\nThe highest-risk segment is "
+    f"{highest_risk.name[0]} + Tier-{highest_risk.name[1]} "
+    f"with a return rate of {highest_risk['return_rate']:.1f}%."
+)
 #                                 total_orders  return_orders  return_rate
 # payment_method city_tier                                          
 #   CARD           1                    45              4          8.9
 #                  2                    23              6         26.1
 #   COD            1                    32             12         37.5
-#                  2                    22             12         54.5  (highest)
+#                  2                    22             12         54.5 
 #   UPI            1                    31              6         19.4
 #                  2                    22              4         18.2
+#   The highest-risk segment is COD + Tier-2 with a return rate of 54.5%.
 
 
 #Task 9 — Correlation analysis —
-coeff = merged_df[['rating','returned', 'discount_pct', 'quantity']].corr().round(2) 
+coeff = merged_df[['rating', 'returned', 'discount_pct', 'quantity']].corr().round(2)
+
 print(coeff)
+
+def corr_band(r):
+    r = abs(r)
+
+    if r < 0.20:
+        return "negligible"
+    elif r < 0.40:
+        return "weak"
+    elif r < 0.70:
+        return "moderate"
+    else:
+        return "strong"
+
+print("\nCORRELATION ANALYSIS")
+print("-" * 50)
+
+cols = ['rating', 'returned', 'discount_pct', 'quantity']
+
+for i in range(len(cols)):
+    for j in range(i + 1, len(cols)):
+        var1 = cols[i]
+        var2 = cols[j]
+
+        r = coeff.loc[var1, var2]
+        band = corr_band(r)
+
+        print(
+            f"{var1} vs {var2}: "
+            f"r = {r:.2f} → {band}"
+        )
+
+print("\nHYPOTHESIS TEST")
+print("Hypothesis: Higher discounts reduce returns")
+
+r = coeff.loc['discount_pct', 'returned']
+
+if abs(r) < 0.20:
+    print(
+        f"BUSTED: discount_pct vs returned correlation "
+        f"is only {r:.2f}, which falls in the negligible band."
+    )
+else:
+    print(
+        f"Supported: correlation = {r:.2f}"
+    )
 #               rating  returned  discount_pct  quantity
 # rating          1.00     -0.10          0.04     -0.10
 # returned       -0.10      1.00         -0.09      0.04
 # discount_pct    0.04     -0.09          1.00     -0.17
 # quantity       -0.10      0.04         -0.17      1.00
-# Correlation coefficient of all six pairs (-0.10, 0.04, -0.10, -0.09, 0.04, -0.17) fall in negligible (|r| < 0.2) range
-# Hypothesis "higher discounts reduce returns" is BUSTED as (discount_pct vs returned correlation ≈ -0.09)
+# CORRELATION ANALYSIS
+# --------------------------------------------------
+# rating vs returned: r = -0.10 → negligible
+# rating vs discount_pct: r = 0.04 → negligible
+# rating vs quantity: r = -0.10 → negligible
+# returned vs discount_pct: r = -0.09 → negligible
+# returned vs quantity: r = 0.04 → negligible
+# discount_pct vs quantity: r = -0.17 → negligible
+
+# HYPOTHESIS TEST
+# Hypothesis: Higher discounts reduce returns
+# BUSTED: discount_pct vs returned correlation is only -0.09, which falls in the negligible band.
 
 
 #Task 10 — Outlier-corrected time series —
@@ -203,7 +284,7 @@ monthly_sales = (
       .sum()
       .reset_index()
 )
-print("including outlier")
+print("Expected")
 print(monthly_sales)
 
 monthly_sales_outl = (
@@ -212,7 +293,7 @@ monthly_sales_outl = (
         .sum()
         .reset_index()
 ) 
-print("excluding outlier")  
+print("Outlier corrected")  
 print(monthly_sales_outl)         
 
 print("Interpretation:")
@@ -224,7 +305,7 @@ print(
        month by total order value.
        """
 )
-# including outlier
+# Expected
 #    year  month  order_value
 # 0  2026      1      29582.1  (highest)
 # 1  2026      2      13195.5
@@ -233,7 +314,7 @@ print(
 # 4  2026      5      13151.1
 # 5  2026      6      11615.4
 
-# excluding outlier
+# Outlier corrected
 #    year  month  order_value
 # 0  2026      1      11637.1
 # 1  2026      2      13195.5
