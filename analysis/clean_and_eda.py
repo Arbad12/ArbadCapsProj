@@ -76,6 +76,20 @@ clean_total = (
 print("total order value = ", clean_total)
 # total order value =  97358.3
 
+raw_df = (
+    orders
+    .merge(customers, on='customer_id')
+    .merge(products, on='product_id')
+)
+raw_df['order_value'] = (   
+        raw_df['quantity']
+      * raw_df['price']
+      * (1 - raw_df['discount_pct'].fillna(0) / 100)
+)
+raw_total = raw_df['order_value'].sum().round(2)
+
+delta = (raw_total - clean_total).round(2)
+
 duplicates_merged = (
     duplicates_df
     .merge(customers, on='customer_id')
