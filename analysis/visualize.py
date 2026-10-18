@@ -59,6 +59,7 @@ plt.show()
 # Find peak month
 peak_row = monthly_sales_outl.loc[monthly_sales_outl['order_value'].idxmax()]
 inflated_row = monthly_sales.loc[monthly_sales['order_value'].idxmax()]
+corrected_inflated_row = monthly_sales_outl[monthly_sales_outl['month'] == 1]
 
 title = (
     f"{int(peak_row['year'])}-{int(peak_row['month']):02d} "
@@ -96,3 +97,45 @@ plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.savefig('monthly_revenue_trend.png', dpi=300)
 plt.show()
+
+
+
+
+
+
+
+
+
+#  Task 3.1 — narrator/findings.json —
+
+import json
+highest_risk_idx = returns_by_payment_ctier['return_rate'].idxmax()
+
+findings = {
+    "cleaned_total_revenue_inr": float(clean_total),
+    "raw_total_revenue_inr": float(raw_total),
+    "duplicate_reconciliation_delta_inr": float(delta),
+    "return_rate_by_payment": {
+        row["payment_method"]: (row["return_rate_pct"])
+        for _, row in payment_returns.iterrows()
+    },
+    "highest_risk_segment": {
+        "payment_method": highest_risk_idx[0],
+        "city_tier": int(highest_risk_idx[1]),
+        "return_rate_pct": float(highest_risk["return_rate"])
+    },
+    "true_peak_month": {
+        "month": f"{int(peak_row['year'])}-{int(peak_row['month']):02d}",
+        "revenue_inr": peak_row['order_value']
+    },
+    "outlier_inflated_month": {
+        "month": f"{int(inflated_row['year'])}-{int(inflated_row['month']):02d}",
+        "apparent_revenue_inr": round(inflated_row['order_value'],1),
+        "corrected_revenue_inr": corrected_inflated_row['order_value'].iloc[0] 
+    }
+}
+
+with open("findings.json", "w") as f:
+    json.dump(findings, f, indent=4)
+
+print("\nfindings.json exported successfully.")
