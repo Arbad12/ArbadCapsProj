@@ -104,7 +104,7 @@ duplicate_total = (
 print("RECONCILIATION NOTE")
 print(
     f"""The cleaned total order value is ₹{clean_total:,.2f}, which is
-₹2,501.90 less than Part 1 Report (a)'s raw total of ₹99,860.20.
+₹{delta:,.2f} less than Part 1 Report (a)'s raw total of ₹{raw_total:,.2f}.
 This difference is entirely attributable to the removal of 5 duplicate
 order rows in Task 3. As an independent check, the combined order_value
 of the 5 dropped duplicate rows is ₹{duplicate_total:,.2f}, which exactly
