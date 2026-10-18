@@ -157,7 +157,7 @@ print(returns_by_payment_ctier)
 #   CARD           1                    45              4          8.9
 #                  2                    23              6         26.1
 #   COD            1                    32             12         37.5
-#                  2                    22             12         54.5
+#                  2                    22             12         54.5  (highest)
 #   UPI            1                    31              6         19.4
 #                  2                    22              4         18.2
 
