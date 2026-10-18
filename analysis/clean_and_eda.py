@@ -98,7 +98,7 @@ duplicates_merged = (
 duplicate_total = (
     duplicates_merged['quantity']
     * duplicates_merged['price']
-    * (1 - duplicates_merged['discount_pct'] / 100)
+    * (1 - duplicates_merged['discount_pct'].fillna(0) / 100)
 ).sum().round(2)
 
 print("RECONCILIATION NOTE")
