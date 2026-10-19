@@ -1,1 +1,14 @@
+### **Situation**
+The business generated a raw total revenue of **INR 99,860.2**, with multi-channel sales driven by digital payments (Card, UPI) and Cash on Delivery (COD) across diverse geographic tiers. Initial topline reporting suggested robust performance, highlighted by an apparent breakout sales surge at the start of the year in January 2026.
 
+### **Complication**
+A deeper diagnostic reveals significant data integrity distortions and critical operational margin leakages:
+1. **Revenue & Trend Distortion:** Duplicate transactions inflated reported top-line figures by a reconciliation delta of **INR 2,501.9**, reducing actual cleaned revenue to **INR 97,358.3**. Furthermore, January 2026 revenue was artificially inflated by an extreme outlier to an apparent **INR 29,582.1**; correcting this outlier lowers January’s true revenue to **INR 11,637.1**, shifting the business's actual peak month to **March 2026 (INR 20,318.9)**.
+2. **Payment Channel Risk:** Cash on Delivery (COD) exhibits a disproportionately high return rate of **44.4%**, compared to digital channels such as UPI (**18.9%**) and Cards (**14.7%**).
+3. **Acute Regional Vulnerability:** The compounding effect of payment terms and geography makes **COD in Tier-2 cities** the highest-risk segment, suffering a critical **54.5% return rate**, rendering this cohort highly margin-dilutive.
+
+### **Resolution**
+To safeguard margins and baseline accurate financial forecasting, management should:
+* **De-risk COD & Target Tier-2 Fulfillment:** Restructure payment terms for Tier-2 orders by introducing small upfront non-refundable commitment fees, mandatory OTP confirmations at dispatch, or checkout incentives (discounts/cashback) to convert COD shoppers to prepaid methods (UPI/Card).
+* **Recalibrate Operational Planning:** Align inventory planning and marketing allocation to the verified peak in **March 2026 (INR 20,318.9)** rather than planning against the distorted January surge.
+* **Embed Automated Ledger Cleansing:** Implement real-time deduplication and anomaly detection to reduce future reconciliation variances and ensure reporting reflects the cleaned revenue baseline of INR 97,358.3.
