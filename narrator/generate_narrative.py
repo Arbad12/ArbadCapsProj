@@ -1,216 +1,156 @@
-import json
-import os
-from pathlib import Path
+"""
+SCR narrative generator for Mamaearth regional ops/finance review.
 
-from google import genai
-from google.genai import types
+Two paths:
+  1. Online  — Gemini via google-genai (deterministic: temperature=0.0).
+  2. Offline  — pure f-string template, zero config, same return shape.
 
-
-SYSTEM_INSTRUCTION = """\
-You are a senior data analyst writing for Mamaearth's regional ops and finance heads.
-
-Structure
-Write exactly three labeled sections, in this order, using these exact labels:
-  Situation: what the data shows about current performance, stated plainly.
-  Complication: what is going wrong, at risk, or unexplained, and why it matters.
-  Resolution: the specific actions the findings support, with owners or regions where the findings name them.
-
-Number integrity (hard constraint)
-- Every number in your output (counts, percentages, currency amounts, dates, rankings) must come from the findings supplied in the user message and must appear with the same value and units.
-- Do not round, convert, or reformat in a way that changes the value.
-- Do not invent statistics, benchmarks, forecasts, or comparisons.
-- Do not compute new figures unless that figure is itself present in the findings.
-- If the findings do not support a point, say the data does not cover it.
-
-Presentation
-- Refer to 2026-03 as March 2026.
-- Use concise, decision-oriented prose for senior business readers.
-- No preamble before Situation.
-- No text after Resolution.
+Both return: {"status", "narrative", "tokens" | "message"}.
 """
 
-
-def check_required_figures(narrative: str) -> bool:
-    """
-    Verify the required grading figures appear.
-
-    Commas are stripped before matching so both:
-      97,358.30 and 97358.30
-      2,501.90 and 2501.90
-    are accepted.
-    """
-
-    normalized = narrative.replace(",", "").lower()
-
-    checks = [
-        (
-            "cleaned total revenue",
-            lambda s: ("97358.30" in s) or ("97358.3" in s),
-        ),
-        (
-            "COD return rate",
-            lambda s: "44.4" in s,
-        ),
-        (
-            "highest-risk return rate",
-            lambda s: "54.5" in s,
-        ),
-        (
-            "duplicate reconciliation delta",
-            lambda s: ("2501.90" in s) or ("2501.9" in s),
-        ),
-        (
-            "March peak revenue",
-            lambda s: (
-                "march" in s
-                and (
-                    ("20318.90" in s)
-                    or ("20318.9" in s)
-                )
-            ),
-        ),
-    ]
-
-    overall = True
-
-    for label, rule in checks:
-        passed = rule(normalized)
-        print(f"[{'PASS' if passed else 'FAIL'}] {label}")
-        overall &= passed
-
-    return overall
+import os
+from datetime import datetime
 
 
-def generate_scr_narrative_offline(findings: dict) -> dict:
-    """
-    Fully deterministic offline fallback.
+def _month_name(yyyy_mm: str) -> str:
+    """'2026-03' -> 'March' (for narrative text; findings stay numeric)."""
+    return datetime.strptime(yyyy_mm, "%Y-%m").strftime("%B")
 
-    No network calls.
-    No API key required.
-    Same return-dict shape as the online success path.
-    """
+
+def _build_system_instruction() -> str:
+    """System instruction: role, structure, and the no-invented-numbers rule.
+    Kept OUT of the user prompt so the model treats it as standing policy."""
+    return (
+        "You are a senior data analyst writing for Mamaearth's regional ops "
+        "and finance heads.\n"
+        "Structure every response as exactly three labeled sections:\n"
+        "1. Situation\n2. Complication\n3. Resolution\n"
+        "Hard constraint: every number in the output must come from the "
+        "supplied findings and appear with the same value. Do not invent, "
+        "round, or extrapolate any statistic."
+    )
+
+
+def _build_user_prompt(findings: dict) -> str:
+    """Build the user prompt by interpolating the findings dict — nothing
+    hardcoded, so a different findings.json yields a different narrative
+    without touching this function."""
+    f = findings
+    pay = f["return_rate_by_payment"]
+    seg = f["highest_risk_segment"]
+    peak = f["true_peak_month"]
+    out = f["outlier_inflated_month"]
+    return (
+        "Write the SCR narrative from these findings:\n"
+        f"- Cleaned total revenue (INR): {f['cleaned_total_revenue_inr']}\n"
+        f"- Raw total revenue (INR): {f['raw_total_revenue_inr']}\n"
+        "- Return rate by payment method (%): "
+        + ", ".join(f"{k} {v}" for k, v in pay.items()) + "\n"
+        f"- Highest-risk segment: {seg['payment_method']} + Tier-"
+        f"{seg['city_tier']}, return rate {seg['return_rate_pct']}%\n"
+        f"- Duplicate reconciliation delta (INR): "
+        f"{f['duplicate_reconciliation_delta_inr']}\n"
+        f"- True peak month: {peak['month']} "
+        f"(revenue INR {peak['revenue_inr']})\n"
+        f"- Outlier-inflated month: {out['month']} "
+        f"(apparent INR {out['apparent_revenue_inr']}, corrected INR "
+        f"{out['corrected_revenue_inr']})\n"
+    )
+
+
+def generate_scr_narrative(findings: dict, client=None,
+                           model: str = "gemini-2.5-flash") -> dict:
+    """Online path: call Gemini, fall back to offline on any failure."""
+    # Offline fallback trigger 1: no API key configured
+    if not os.environ.get("GEMINI_API_KEY"):
+        return generate_scr_narrative_offline(findings)
 
     try:
-        narrative = f"""Situation: Cleaned total revenue is ₹{findings['cleaned_total_revenue_inr']:.2f}. Return rates by payment method are COD {findings['return_rate_by_payment']['COD']}%, UPI {findings['return_rate_by_payment']['UPI']}%, and CARD {findings['return_rate_by_payment']['CARD']}%. The true peak month is March 2026 with revenue of ₹{findings['true_peak_month']['revenue_inr']:.2f}.
+        # Lazy import so the offline path needs zero dependencies
+        from google import genai
+        from google.genai import types
 
-Complication: Raw total revenue is ₹{findings['raw_total_revenue_inr']:.2f}, creating a duplicate-driven reconciliation delta of ₹{findings['duplicate_reconciliation_delta_inr']:.2f}. The highest-risk segment is COD in city tier {findings['highest_risk_segment']['city_tier']} with a return rate of {findings['highest_risk_segment']['return_rate_pct']}%. January 2026 appears at ₹{findings['outlier_inflated_month']['apparent_revenue_inr']:.2f} but corrects to ₹{findings['outlier_inflated_month']['corrected_revenue_inr']:.2f} after adjustment.
-
-Resolution: Use ₹{findings['cleaned_total_revenue_inr']:.2f} as the reporting revenue figure and reconcile the duplicate variance of ₹{findings['duplicate_reconciliation_delta_inr']:.2f}. Prioritize investigation of COD orders in city tier {findings['highest_risk_segment']['city_tier']}, where returns reach {findings['highest_risk_segment']['return_rate_pct']}%. Treat March 2026 revenue of ₹{findings['true_peak_month']['revenue_inr']:.2f} as the true revenue peak."""
-
-        return {
-            "status": "success",
-            "narrative": narrative,
-            "tokens": None,
-        }
-
-    except Exception as err:
-        return {
-            "status": "error",
-            "narrative": None,
-            "message": str(err),
-        }
-
-
-def generate_narrative(
-    findings: dict,
-    client: genai.Client | None = None,
-    model: str = "gemini-2.5-flash",
-) -> dict:
-    """
-    Generate a Situation / Complication / Resolution narrative.
-
-    Fallback behavior:
-      1. If no API key is configured -> offline renderer.
-      2. If Gemini call fails -> offline renderer.
-      3. If Gemini output fails required-figure validation -> offline renderer.
-
-    Caller never receives a raw exception.
-    """
-
-    try:
-        if not findings:
-            raise ValueError(
-                "findings is empty; nothing to narrate."
-            )
-
-        api_key = (
-            os.getenv("GEMINI_API_KEY")
-            or os.getenv("GOOGLE_API_KEY")
-        )
-
-        #
-        # No environment configuration required.
-        # Immediately use deterministic fallback.
-        #
-        if not api_key:
-            return generate_scr_narrative_offline(findings)
-
-        client = client or genai.Client()
-
-        findings_block = json.dumps(
-            findings,
-            indent=2,
-            ensure_ascii=False,
-        )
-
-        contents = (
-            "Write the Situation, Complication, Resolution narrative "
-            "based solely on the findings below. "
-            "Use only numbers that appear in them.\n\n"
-            f"<findings>\n{findings_block}\n</findings>"
-        )
+        if client is None:
+            client = genai.Client()  # reads GEMINI_API_KEY from env
 
         response = client.models.generate_content(
             model=model,
-            contents=contents,
+            contents=_build_user_prompt(findings),
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-
-                # temperature=0.0 because this is a factual
-                # business report, not a creative-writing task.
-                # We want predictable output tightly grounded
-                # in the supplied findings.
-                temperature=0.0,
-
-                # Explicit limit rather than API default.
-                # Easily accommodates a ~250-word SCR narrative.
-                max_output_tokens=1024,
-
-                # Timeout >= 10 seconds per requirement.
-                http_options=types.HttpOptions(
-                    timeout=30_000
-                ),
+                system_instruction=_build_system_instruction(),
+                temperature=0.0,        # deterministic: factual business
+                                        # report, not creative writing
+                max_output_tokens=600,  # explicit, not API default;
+                                        # >300, fits ~250-word SCR
+                http_options=types.HttpOptions(timeout=30),  # >= 10s min
             ),
         )
-
-        if not response.text:
-            raise RuntimeError(
-                "Model returned no text."
-            )
-
-        narrative = response.text
-
-        #
-        # Validate required grading figures.
-        # If Gemini omits them, use deterministic fallback.
-        #
-        if not check_required_figures(narrative):
+        if getattr(response, "status", None) == "error":
             return generate_scr_narrative_offline(findings)
-
-        usage = response.usage_metadata
-
         return {
             "status": "success",
-            "narrative": narrative,
-            "tokens": (
-                usage.total_token_count
-                if usage else None
-            ),
+            "narrative": response.text,
+            "tokens": response.usage_metadata.total_token_count
+                      if response.usage_metadata else None,
         }
-
-    except Exception:
-        #
-        # Any API/configuration/runtime issue falls back
-        # to the deterministic renderer.
-        #
+    except Exception as err:  # caller never sees a raw exception
+        # Offline fallback trigger 2: any API failure
         return generate_scr_narrative_offline(findings)
+
+
+def generate_scr_narrative_offline(findings: dict) -> dict:
+    """Offline path: fully deterministic f-string template. No network,
+    no API key, same return-dict shape, same key figures."""
+    f = findings
+    seg = f["highest_risk_segment"]
+    peak = f["true_peak_month"]
+    out = f["outlier_inflated_month"]
+    narrative = (
+        "Situation\n"
+        f"After cleaning, Mamaearth's total revenue stands at INR "
+        f"{f['cleaned_total_revenue_inr']:,.2f}, down from a raw figure of "
+        f"INR {f['raw_total_revenue_inr']:,.2f}. The gap is fully explained "
+        f"by duplicate records, which drove a reconciliation delta of INR "
+        f"{f['duplicate_reconciliation_delta_inr']:,.2f}.\n"
+        "Complication\n"
+        f"Returns are concentrated in COD: the COD return rate is "
+        f"{f['return_rate_by_payment']['COD']}%, versus "
+        f"{f['return_rate_by_payment']['UPI']}% for UPI and "
+        f"{f['return_rate_by_payment']['CARD']}% for CARD. The "
+        f"highest-risk segment is COD in Tier-{seg['city_tier']} cities at "
+        f"{seg['return_rate_pct']}%. Revenue timing was also misread: "
+        f"{_month_name(out['month'])} looked like the peak at INR "
+        f"{out['apparent_revenue_inr']:,.2f}, but that was an outlier — "
+        f"corrected revenue is only INR "
+        f"{out['corrected_revenue_inr']:,.2f}.\n"
+        "Resolution\n"
+        f"{_month_name(peak['month'])} is the true peak month with revenue "
+        f"of INR {peak['revenue_inr']:,.2f}. Ops should prioritise COD "
+        f"return-reduction in Tier-{seg['city_tier']} cities, and finance "
+        f"should treat INR "
+        f"{f['duplicate_reconciliation_delta_inr']:,.2f} as the "
+        f"reconciled duplicate-driven gap."
+    )
+    return {"status": "success", "narrative": narrative, "tokens": 0}
+
+
+# Each entry: substrings that must ALL appear after comma-normalization.
+REQUIRED_FIGURES = {
+    "cleaned_total_revenue": ["97358.3"],
+    "cod_return_rate_pct": ["44.4"],
+    "cod_tier2_return_rate_pct": ["54.5"],
+    "recon_delta_duplicates": ["2501.9"],
+    "true_peak_month_and_revenue": ["March", "20318.9"],
+}
+
+
+def check_narrative(narrative: str) -> bool:
+    """Assert all five key figures appear as substrings after normalizing
+    commas. Prints one pass/fail line per figure; returns overall verdict."""
+    normalized = narrative.replace(",", "")
+    ok = True
+    for label, parts in REQUIRED_FIGURES.items():
+        found = all(p in normalized for p in parts)
+        ok = ok and found
+        print(f"{'PASS' if found else 'FAIL'}: {label} -> {' + '.join(parts)}")
+    return ok
