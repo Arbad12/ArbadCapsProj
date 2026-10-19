@@ -1,3 +1,5 @@
+#This file uses variables defined in clean_and_eda.py and is to be RUN second.
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
