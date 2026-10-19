@@ -1,5 +1,5 @@
 -- a) Order totals —
-SELECT COUNT(*) FROM orders
+SELECT COUNT(*) FROM orders;
 -- total_orders = 180
 
 SELECT SUM(
@@ -74,7 +74,7 @@ JOIN customers c
 JOIN products p
     ON o.product_id = p.product_id
 GROUP BY c.customer_id, c.name
-ORDER BY total_spend DESC, customer_id ASC 
+ORDER BY total_spend DESC, c.customer_id ASC 
 LIMIT 5;
 -- If two customers have the same total_spend, it sorts those tied rows by customer_id in ascending order.
 --C043|Reyansh|12920.0
@@ -95,7 +95,7 @@ JOIN customers c
 JOIN products p
     ON o.product_id = p.product_id
 GROUP BY c.customer_id, c.name
-ORDER BY total_spend DESC, customer_id ASC 
+ORDER BY total_spend DESC, c.customer_id ASC 
 LIMIT 3 OFFSET 2;
 --C008|Meera|4564.6
 --C011|Arjun|4111.0
